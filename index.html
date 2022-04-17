@@ -1,0 +1,177 @@
+<html>
+	<head>
+
+		<script type="text/javascript" src="JS/jquery.js"></script>
+		<title>Corruption</title>
+		<style>
+		@font-face {
+			font-family: "myfontbold";
+			src: url("font.bold.woff") format('woff');
+		}
+        @font-face {
+			font-family: "myfont";
+			src: url("font.woff") format('woff');
+		}
+		body {
+		    font-family: myfont;
+            color:#0082FF;
+			-webkit-user-select: none; /* Safari */
+			-moz-user-select: none; /* Firefox */
+			-ms-user-select: none; /* IE10+/Edge */
+			user-select: none; /* Standard */
+		}
+        .toggleButton {
+            width: 124px;
+            height: 24px;
+            background-image: url(images/radioButton.png);
+            margin: 6px;
+            font-size: 14px;
+            padding-left: 8px;
+            cursor: pointer;
+        }
+        .optionList {
+            display:inline-block;
+        }
+        .checked {
+            background-position-y: -24px;
+        }
+        .toggleBoard {
+            width:100px;
+            height:100px;
+            border: 2px solid #FF510E;
+            display:inline-block;
+            margin:20px;
+            cursor: pointer;
+        }
+        .selected{
+            border: 2px solid #0082FF;
+        }
+		#mute{
+			width:16px;
+			height:16px;
+			background-image: url(images/unmute.png);
+			position: fixed;
+		    right: 11px;
+		    bottom: 11px;
+			cursor: pointer;
+		}
+		.muted{
+			background-image: url(images/mute.png) !important;
+		}
+        #start {
+            text-align: center;
+            font-size: 40px;
+            font-family: myfontbold;
+            cursor: pointer;
+            bottom: 30px;
+            position: absolute;
+            left: 300px;
+            text-align: center;
+        }
+        #logo {
+            text-align: center;
+            font-size: 64px;
+            background-image: url(images/logo4.png);
+            width: 104%;
+            height: 130px;
+            background-size: cover;
+            background-position-y: -270px;
+            margin-left: -14px;
+        }
+		</style>
+		<script>
+			var sound = true;
+			var audio = new Audio('click2.wav');
+			var url = new URL(window.location.href);
+			var sound = url.searchParams.get("sound");
+
+			if(sound == null || sound == 1){
+				sound = true;
+			}else{
+				sound = false;
+			}
+
+            $( document ).ready(function() {
+                $( ".aiToggle" ).click(function() {
+					if(sound){
+						audio.play();
+					}
+                    $( ".aiToggle" ).removeClass("checked");
+                    $(this).addClass("checked");
+                });
+                $( ".diffToggle" ).click(function() {
+					if(sound){
+						audio.play();
+					}
+                    $( ".diffToggle" ).removeClass("checked");
+                    $(this).addClass("checked");
+                });
+                $( ".winToggle" ).click(function() {
+					if(sound){
+						audio.play();
+					}
+                    $( ".winToggle" ).removeClass("checked");
+                    $(this).addClass("checked");
+                });
+                $( ".toggleBoard" ).click(function() {
+					if(sound){
+						audio.play();
+					}
+                    $( ".toggleBoard" ).removeClass("selected");
+                    $(this).addClass("selected");
+                });
+                $('#start').click(function(){
+					soundCondition = "sound=0";
+					if(sound){
+						audio.play();
+						soundCondition = "sound=1";
+					}
+                    var url="game.html?" + soundCondition + $('.aiToggle.checked').data()["value"] + $('.diffToggle.checked').data()["value"] + $('.winToggle.checked').data()["value"] + $('.toggleBoard.selected').data()["value"];
+                    console.log(url);
+                    window.location.href = (url);
+                });
+				$('#mute').click(function(){
+					$(this).toggleClass("muted");
+					sound = !sound;
+					if(sound){
+						audio.play();
+					}
+				});
+				if(!sound){
+					$("#mute").addClass("muted");
+				}
+            });
+		</script>
+	</head>
+	<body style="overflow:hidden;background-image: url('images/bg.png');">
+        <div id="logo"></div>
+		<div style="color:#FF510E; text-align:center;font-size:24px;margin-bottom: 15px;">A back and forth struggle for power.</div>
+        <div style="margin-left:20px" class="optionList">
+            AI Behavior:
+            <div class="toggleButton aiToggle" data-value="&aggr=1">Passive</div>
+            <div class="toggleButton aiToggle checked" data-value="&aggr=2">Normal</div>
+            <div class="toggleButton aiToggle" data-value="&aggr=3">Aggressive</div>
+        </div>
+        <div style="margin-left:110px" class="optionList">
+            Difficulty:
+            <div class="toggleButton diffToggle" data-value="&diff=1">Easy</div>
+            <div class="toggleButton diffToggle checked" data-value="&diff=2">Medium</div>
+            <div class="toggleButton diffToggle" data-value="&diff=3">Hard</div>
+        </div>
+        <div style="margin-right:20px;float:right;" class="optionList">
+            Win Condition:
+            <div class="toggleButton winToggle checked" data-value="&win=1">Domination</div>
+            <div class="toggleButton winToggle" data-value="&win=0">Obliteration</div>
+
+        </div>
+        <div style="width: 100%;text-align: center;margin-top: 23px;" class="optionList">
+            Game Board:<br/>
+            <div style="background-image: url('images/board1.png');" class="toggleBoard selected" data-value="&boardID=0"></div>
+            <div style="background-image: url('images/board2.png');" class="toggleBoard" data-value="&boardID=1"></div>
+            <div style="background-image: url('images/board3.png');" class="toggleBoard" data-value="&boardID=2"></div>
+            <div style="background-image: url('images/board4.png');" class="toggleBoard" data-value="&boardID=3"></div>
+        </div>
+        <div id="start">START</div>
+		<div id="mute"></div>
+	</body>
+</html>

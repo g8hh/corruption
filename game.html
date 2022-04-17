@@ -1,0 +1,683 @@
+<html>
+	<head>
+		<script type="text/javascript" src="JS/jquery.js"></script>
+		<script type="text/javascript" src="JS/jquery.fancybox.js"></script>
+		<script type="text/javascript" src="JS/phaser.js"></script>
+        <script type="text/javascript" src="JS/random.js"></script>
+		<title>Corruption</title>
+		<style>
+		@font-face {
+			font-family: "myfont";
+			src: url("font.woff") format('woff');
+		}
+            html{
+                
+            }
+		body {
+		    font-family: myfont;
+			-webkit-user-select: none; /* Safari */
+			-moz-user-select: none; /* Firefox */
+			-ms-user-select: none; /* IE10+/Edge */
+			user-select: none; /* Standard */
+            margin: 0 auto;
+            width: 800px;
+            position: relative
+		}
+
+		a {
+			color:#0082FF;
+		}
+		a:hover {
+			color:#FF510E;
+		}
+		a:link {
+		    text-decoration: none;
+		}
+
+		a:visited {
+		    text-decoration: none;
+		}
+
+		a:hover {
+		    text-decoration: none;
+		}
+
+		a:active {
+		    text-decoration: none;
+		}
+		#data{
+			text-align: center;
+			font-size: 48px;
+			background-color: #222222;
+		}
+		#fancybox-skin, .fancybox-skin, .fancybox-inner {
+		 	border-color: #222222 !important; /* or whatever */
+			background-color: #222222 !important;
+		}
+		#mute{
+			width:16px;
+			height:16px;
+			background-image: url(images/unmute.png);
+			position: absolute;
+			right: 11px;
+			bottom: 11px;
+			cursor: pointer;
+		}
+		.muted{
+			background-image: url(images/mute.png) !important;
+		}
+		</style>
+		<script>
+
+			game = new Phaser.Game(510, 590, Phaser.CANVAS, 'wrapper');
+
+            var tiles;
+            var turn = "player";
+            var notTurn = "enemy";
+			var url = new URL(window.location.href);
+            var gameID = url.searchParams.get("gameID");
+			var boardID = url.searchParams.get("boardID");
+			var diff = url.searchParams.get("diff");
+			var aggr = url.searchParams.get("aggr");
+			var win = url.searchParams.get("win");
+			var sound = url.searchParams.get("sound");
+			var slow = url.searchParams.get("slow");
+			var audio = new Audio('click2.wav');
+			var audio2 = new Audio('switch.wav');
+			var counter = 0;
+			var activeTiles = 0;
+			var turnRunning = false;
+			var turnCheck = true;
+			var converting = false;
+			var converting2 = false;
+			var debugTile;
+			var playerTiles = 1;
+			var enemyTiles = 1;
+			var testArray = [];
+			var levels = []
+			var winner = 0;
+			var gameOver = false;
+			var neighboursAdded = false;
+
+			if(slow == null || slow == 1){
+				slow = true;
+			}else{
+				slow = false;
+			}
+			if(sound == null || sound == 1){
+				sound = true;
+			}else{
+				sound = false;
+			}
+			if(win == null){
+				win = 0;
+			}
+			if(diff == null){
+				diff = 3;
+			}
+			if(aggr == null){
+				aggr = 2;
+			}
+			if(boardID == null){
+				boardID = 0;
+			}
+
+			console.log("win: " + win)
+			console.log("diff: " + diff)
+			console.log("aggr: " + aggr)
+			console.log("board: " + boardID)
+
+			levels[0] = ["-1"];
+			levels[1] = "192,215,237,258,278,297,315,316,317,318,319,320,321,304,286,267,247,226,204,181,159,138,118,99,81,80,79,78,77,76,75,92,110,129,149,170,193,216,238,259,279,298,299,300,301,302,303,285,266,246,225,203,180,158,137,117,98,97,96,95,94,93,111,130,150,171,194,217,239,260,280,281,282,283,284,265,245,224,202,179,157,136,116,115,114,113,112,131,151,172,195,218,240,261,262,263,264,244,223,201,178,156,135,134,133,132,152,173,196,219,241,242,243,222,200,177,155,154,153,174,197,220,221,199,176,175,198".split(",");
+			levels[2] = "386,374,361,395,382,368,353,337,320,302,283,263,242,262,281,299,332,316,347,387,388,389,390,391,392,393,394,381,380,379,378,377,376,375,362,363,364,365,366,367,352,351,350,349,348,333,334,335,336,319,318,317,300,301,282,1,14,28,43,59,76,94,113,133,154,134,115,97,80,64,49,35,22,10,9,8,7,6,5,4,3,2,15,29,44,60,77,95,114,96,79,63,48,34,21,20,19,18,17,16,30,45,61,78,62,47,33,32,31,46".split(",");
+			levels[3] = "54,55,56,327,328,329,342,341,340,69,68,67,64,63,62,61,60,59,332,333,334,335,336,337,198,220,221,175,176,154,242,262,263,133,134,114,282,300,301,95,96,78,318".split(",");
+
+			var imageSize = 24
+
+			main_state = {
+				preload : function() {
+					game.load.image('tile', 'images/tile3.png');
+					game.load.spritesheet('turret', 'images/turret3.png', 32, 32);
+					game.load.image("bg", "images/bg.png");
+					game.load.image("blank", "images/blank.png");
+				},
+				create : function() {
+					game.physics.startSystem(Phaser.Physics.ARCADE);
+					game.add.tileSprite(0, 0, 1000, 600, 'bg');
+					drawBoard();
+				},
+				update : function() {
+
+					if(!neighboursAdded){
+						neighboursAdded = true;
+						tiles.forEach(function(tile){
+							findNeighbours(tile.tileIndex);
+						});
+					}
+
+					if (!gameOver){
+
+						if(winner == 1){
+							gameOver = true;
+							$("#youWin").show();
+							$("#inline").click();
+						}else if(winner == -1){
+							gameOver = true;
+							$("#youLose").show();
+							$("#inline").click();
+						}
+
+						tiles.forEach(function(tile){
+							if (typeof tile.turret !== 'undefined') {
+								if(tile.turret.angle != -90 && tile.turret.angle != -30 && tile.turret.angle != -150 && tile.turret.angle != 90 && tile.turret.angle != 30 && tile.turret.angle != 150){
+									tile.turret.angle = Math.round(tile.turret.angle + 5);
+									if(tile.turret.angle == -90 || tile.turret.angle == -30 || tile.turret.angle == -150 || tile.turret.angle == 90 || tile.turret.angle == 30 || tile.turret.angle == 150){
+										converting = true;
+										converting2 = true;
+									}
+								}
+							}
+						});
+
+						if(converting2 && converting){
+							checkTiles();
+						}
+
+						if(turn == "enemy" && turnCheck){
+
+							turnCheck = false;
+							setTimeout(function () {
+						        tileAction(findMove());
+						    }, 1000);
+						}
+						if(turn == "player"){
+							turnCheck = true;
+						}
+						if(win == 0){
+							$("#playerScore").html(playerTiles);
+							$("#enemyScore").html(enemyTiles);
+							$("#winCond").html("<strong>Obliteration Mode</strong><br/>Convert all enemy tiles to win.");
+							if(playerTiles == 0){
+								winner = -1
+							}else if (enemyTiles == 0){
+								winner = 1
+							}
+						}else{
+							$("#playerScore").html((Math.round(playerTiles/activeTiles * 1000) / 10) + "%");
+							$("#enemyScore").html((Math.round(enemyTiles/activeTiles * 1000) / 10) + "%");
+							$("#winCond").html("<strong>Domination Mode</strong><br/>Control 70% of the play area to win.");
+							if(playerTiles == 0 || (Math.round(enemyTiles/activeTiles * 1000) / 10) > 70){
+								winner = -1
+							}else if (enemyTiles == 0 || (Math.round(playerTiles/activeTiles * 1000) / 10) > 70){
+								winner = 1
+							}
+						}
+					}
+				},
+				render: function()
+				{
+					//tiles.forEach(function(tile){
+						//game.debug.body(tile.listen);
+					//});
+				},
+				newGame : function() {
+				},
+			};
+			game.state.add('main', main_state);
+			game.state.start('main');
+
+            function tileAction(tileID){
+				if(!turnRunning && !gameOver){
+	                tile = tiles.children[tileID];
+	                if(tile.form == turn){
+						if(sound){
+							audio2.play();
+						}
+						turnRunning = true;
+	                    tile.turret.angle = tile.turret.angle + 5;
+	                }
+				}
+            }
+
+			function test(tile){
+				converting2 = true;
+				tiles.forEach(function(tile){
+                    if (tile.form == "enemy"){
+						tile.turret.animations.frame = 0;
+					}else if (tile.form == "player"){
+						tile.turret.animations.frame = 6;
+					}
+				});
+			}
+
+			function findMove(){
+				var moveOptions = [];
+				bestMove = 0;
+				bestMove2 = 0;
+				currentAngle = 60;
+				while(bestMove == 0 && winner == 0){
+					tiles.forEach(function(tile){
+	                    if (tile.form == "enemy"){
+							newMove = calculateMove(tile.tileIndex, currentAngle);
+							if(newMove["moves"] != 0){
+								moveOptions.push(newMove);
+							}
+						}
+					});
+					moveOptions.sort(compare);
+					console.log(moveOptions);
+					if(moveOptions.length > 0){
+						bestMove = 1;
+						if(diff == 1){
+							bestMove2 = moveOptions[0]["tileID"];
+						}else if(diff == 3){
+							bestMove2 = moveOptions[moveOptions.length - 1]["tileID"];
+						}else{
+							bestMove2 = moveOptions[Math.floor(Math.random() * (moveOptions.length - 1))]["tileID"];
+						}
+					}
+					currentAngle = currentAngle + 60;
+				}
+				return(bestMove2);
+			}
+
+			function calculateMove(tileID, currentAngle){
+				var oldType = "";
+				var modifier = 1;
+				var returnArray = [];
+				returnArray["tileID"] = tileID;
+				tiles.children[tileID].turret.angle = tiles.children[tileID].turret.angle + currentAngle;
+				var testList = [];
+				var convertTiles = getConvertingTiles("enemy");
+				while(convertTiles.length > 0){
+					convertTiles.forEach(function(tileIndex){
+						testList.push(tileIndex)
+						if(oldType == ""){
+							oldType = tiles.children[tileIndex].form;
+							if(aggr == 1){
+								if(oldType == "player"){
+									modifier = .5;
+								}
+							}
+							if(aggr == 2){
+								if(oldType == "player"){
+									modifier = 1;
+								}
+							}
+							if(aggr == 3){
+								if(oldType == "player"){
+									modifier = 5;
+								}
+							}
+
+						}
+						tiles.children[tileIndex].form = "enemy";
+					});
+					convertTiles = getConvertingTiles("enemy");
+				}
+
+				returnArray["moves"] = testList.length * modifier;
+				tiles.forEach(function(tile){
+					if(typeof tile.turret !== 'undefined'){
+						if(tile.turret.frame == 0){
+							tile.form = "enemy"
+						}else if(tile.turret.frame == 3){
+							tile.form = "empty"
+						}else{
+							tile.form = "player"
+						}
+					}
+				});
+				tiles.children[tileID].turret.angle = tiles.children[tileID].turret.angle - currentAngle;
+				return returnArray;
+			}
+
+			function findNeighbours(tileIndex){
+				try{
+					tileX = tiles.children[tileIndex].x;
+					tileY = tiles.children[tileIndex].y;
+					tiles.children[tileIndex].neighbours = [];
+					tiles.forEach(function(tile){
+						if(tile.getBounds().contains(tileX, tileY - 30)){
+							tiles.children[tileIndex].neighbours['-90'] = tile;
+						}else if(tile.getBounds().contains(tileX, tileY + 30)){
+							tiles.children[tileIndex].neighbours['90'] = tile;
+						}else if(tile.getBounds().contains(tileX + 20, tileY + 12)){
+							tiles.children[tileIndex].neighbours['30'] = tile;
+						}else if(tile.getBounds().contains(tileX + 20, tileY - 12)){
+							tiles.children[tileIndex].neighbours['-30'] = tile;
+						}else if(tile.getBounds().contains(tileX - 20, tileY + 12)){
+							tiles.children[tileIndex].neighbours['150'] = tile;
+						}else if(tile.getBounds().contains(tileX - 20, tileY - 12)){
+							tiles.children[tileIndex].neighbours['-150'] = tile;
+						}
+					});
+				}catch(err){}
+			}
+
+			function checkTiles(){
+				converting2 = false;
+				if(turnRunning){
+					var convertTiles = getConvertingTiles(turn);
+					if(convertTiles.length == 0){
+						converting = false;
+						converting2 = false;
+						turnRunning = false;
+						if(tile.form == turn && turn == "player"){
+							turn = "enemy";
+							notTurn = "player";
+
+						}else if(tile.form == turn && turn == "enemy"){
+							turn = "player";
+							notTurn = "enemy";
+
+						}
+					}
+					playerTiles = 0;
+					enemyTiles = 0;
+					tiles.forEach(function(tile){
+						if(tile.form == "player"){
+							playerTiles++;
+						}else if(tile.form == "enemy"){
+							enemyTiles++;
+						}
+					});
+					convertTiles.forEach(function(tileIndex){
+						tiles.children[tileIndex].turret.animations.play(tiles.children[tileIndex].form + '-' + turn);
+						tiles.children[tileIndex].form = turn;
+					});
+				}
+			}
+
+			function createTile(x, y, k){
+				if(x == 0 || x == 22){
+					xStart = 124;
+				}else if(x == 1 || x == 21){
+					xStart = 112;
+				}else if(x == 2 || x == 20){
+					xStart = 100;
+				}else if(x == 3 || x == 19){
+					xStart = 88;
+				}else if(x == 4 || x == 18){
+					xStart = 76;
+				}else if(x == 5 || x == 17){
+					xStart = 64;
+				}else if(x == 6 || x == 16){
+					xStart = 52;
+				}else if(x == 7 || x == 15){
+					xStart = 40;
+				}else if(x == 8 || x == 14){
+					xStart = 28;
+				}else if(x == 9 || x == 13){
+					xStart = 16;
+				}else if(x == 10 || x == 12){
+					xStart = 4;
+				}else if(x == 11){
+					xStart = -8;
+				}
+				tile = game.add.sprite(30 + x * (imageSize - 4) , 30 + xStart + y * imageSize, 'tile');
+				tile.anchor.setTo(0.5, 0.5);
+				if(levels[boardID].indexOf(k.toString()) == -1){
+					activeTiles++;
+					tile.turret = game.add.sprite(tile.x , tile.y, 'turret');
+					tile.turret.base = tile;
+					tile.turret.anchor.setTo(0.5, 0.5);
+					tile.listen = game.add.sprite(tile.x , tile.y, 'blank');
+					tile.listen.base = tile;
+					tile.listen.anchor.setTo(0.5, 0.5);
+					game.physics.arcade.enable(tile.listen);
+					tile.listen.body.enable;
+
+					if(slow){
+						a1 = tile.turret.animations.add("enemy-player", [0,1,2,3,4,5,6], 25);
+						a2 = tile.turret.animations.add("player-enemy", [6,5,4,3,2,1,0], 25);
+						a3 = tile.turret.animations.add("empty-player", [3,4,5,6], 18);
+						a4 = tile.turret.animations.add("empty-enemy", [3,2,1,0], 18);
+
+						a1.onComplete.add(test, this);
+						a2.onComplete.add(test, this);
+						a3.onComplete.add(test, this);
+						a4.onComplete.add(test, this);
+					}else{
+						a1 = tile.turret.animations.add("enemy-player", [0,1,2,3,4,5,6], 250);
+						a2 = tile.turret.animations.add("player-enemy", [6,5,4,3,2,1,0], 250);
+						a3 = tile.turret.animations.add("empty-player", [3,4,5,6], 180);
+						a4 = tile.turret.animations.add("empty-enemy", [3,2,1,0], 180);
+
+						a1.onComplete.add(test, this);
+						a2.onComplete.add(test, this);
+						a3.onComplete.add(test, this);
+						a4.onComplete.add(test, this);
+					}
+
+					if(k == 187){
+						tile.turret.frame = 6
+						tile.form = 'player'
+						tile.turret.angle = -30;
+					}else if(k == 209){
+						tile.turret.frame = 0
+						tile.form = 'enemy'
+						tile.turret.angle = 150;
+					}else{
+						tile.turret.frame = 3
+						tile.form = 'empty'
+						if(k > 199){
+							tile.turret.angle = tiles.children[396 - k].turret.angle + 180;
+						}else{
+							tile.turret.angle = Math.floor((Math.random() * 6)) * 60 + 30;
+						}
+					}
+					tile.xPos = x;
+					tile.yPos = y;
+					tile.tileIndex = k;
+					tile.listen.inputEnabled = true;
+					tile.neighbours = new Array();
+					tile.listen.events.onInputDown.add(tileClick, this);
+				}
+
+				return tile;
+			}
+
+			function tileClick(tile){
+				tileAction(tile.base.tileIndex, false);
+			}
+
+			function drawBoard(){
+				turn = "player";
+				nonTurn = "enemy";
+				Math.seedrandom(gameID);
+				game.stage.backgroundColor = '#1e2024';
+				tiles = game.add.group();
+				var k = 0;
+				for (var x = 0; x < 23; x++){
+					yMax = 0;
+					if(x == 0 || x == 22){
+						yMax = 12;
+					}else if(x == 1 || x == 21){
+						yMax = 13;
+					}else if(x == 2 || x == 20){
+						yMax = 14;
+					}else if(x == 3 || x == 19){
+						yMax = 15;
+					}else if(x == 4 || x == 18){
+						yMax = 16;
+					}else if(x == 5 || x == 17){
+						yMax = 17;
+					}else if(x == 6 || x == 16){
+						yMax = 18;
+					}else if(x == 7 || x == 15){
+						yMax = 19;
+					}else if(x == 8 || x == 14){
+						yMax = 20;
+					}else if(x == 9 || x == 13){
+						yMax = 21;
+					}else if(x == 10 || x == 12){
+						yMax = 22;
+					}else if(x == 11){
+						yMax = 23;
+					}
+					for (var y = 0; y < yMax; y++){
+						var tile = createTile(x, y, k);
+						tiles.add(tile);
+						k++;
+					}
+				}
+			}
+
+            function getConvertingTiles(type){
+                var convertTiles = [];
+                tiles.forEach(function(tile){
+                    if (tile.form == type){
+						if(typeof tile.neighbours["-90"] !== 'undefined'){
+	                        if(typeof tile.neighbours["-90"].turret !== 'undefined'){
+	                            if(tile.turret.angle == -90 && tile.neighbours["-90"].form != type){
+	                                convertTiles.push(tile.neighbours["-90"].tileIndex);
+	                            }else if(tile.neighbours["-90"].turret.angle == 90 && tile.neighbours["-90"].form != type){
+	                                convertTiles.push(tile.neighbours["-90"].tileIndex);
+	                            }
+	                        }
+						}
+						if(typeof tile.neighbours["-30"] !== 'undefined'){
+							if(typeof tile.neighbours["-30"].turret !== 'undefined'){
+	                            if(tile.turret.angle == -30 && tile.neighbours["-30"].form != type){
+	                                convertTiles.push(tile.neighbours["-30"].tileIndex);
+	                            }else if(tile.neighbours["-30"].turret.angle == 150 && tile.neighbours["-30"].form != type){
+	                                convertTiles.push(tile.neighbours["-30"].tileIndex);
+	                            }
+	                        }
+						}
+						if(typeof tile.neighbours["-150"] !== 'undefined'){
+							if(typeof tile.neighbours["-150"].turret !== 'undefined'){
+	                            if(tile.turret.angle == -150 && tile.neighbours["-150"].form != type){
+	                                convertTiles.push(tile.neighbours["-150"].tileIndex);
+	                            }else if(tile.neighbours["-150"].turret.angle == 30 && tile.neighbours["-150"].form != type){
+	                                convertTiles.push(tile.neighbours["-150"].tileIndex);
+	                            }
+	                        }
+						}
+						if(typeof tile.neighbours["30"] !== 'undefined'){
+							if(typeof tile.neighbours["30"].turret !== 'undefined'){
+	                            if(tile.turret.angle == 30 && tile.neighbours["30"].form != type){
+	                                convertTiles.push(tile.neighbours["30"].tileIndex);
+	                            }else if(tile.neighbours["30"].turret.angle == -150 && tile.neighbours["30"].form != type){
+	                                convertTiles.push(tile.neighbours["30"].tileIndex);
+	                            }
+	                        }
+						}
+						if(typeof tile.neighbours["150"] !== 'undefined'){
+							if(typeof tile.neighbours["150"].turret !== 'undefined'){
+		                        if(tile.turret.angle == 150 && tile.neighbours["150"].form != type){
+		                            convertTiles.push(tile.neighbours["150"].tileIndex);
+		                        }else if(tile.neighbours["150"].turret.angle == -30 && tile.neighbours["150"].form != type){
+		                            convertTiles.push(tile.neighbours["150"].tileIndex);
+		                        }
+		                    }
+						}
+						if(typeof tile.neighbours["90"] !== 'undefined'){
+							if(typeof tile.neighbours["90"].turret !== 'undefined'){
+	                            if(tile.turret.angle == 90 && tile.neighbours["90"].form != type){
+	                                convertTiles.push(tile.neighbours["90"].tileIndex);
+	                            }else if(tile.neighbours["90"].turret.angle == -90 && tile.neighbours["90"].form != type){
+	                                convertTiles.push(tile.neighbours["90"].tileIndex);
+	                            }
+	                        }
+						}
+                    }
+                });
+                return convertTiles;
+            }
+			function compare(a,b) {
+				if (a.moves < b.moves)
+					return -1;
+				if (a.moves > b.moves)
+					return 1;
+				return 0;
+			}
+
+			$( document ).ready(function() {
+				$("a#inline").fancybox({
+					'hideOnContentClick': true
+				});
+
+				$('#mute').click(function(){
+					$(this).toggleClass("muted");
+					sound = !sound;
+					if(sound){
+						audio.play();
+					}
+				});
+				if(!sound){
+					$("#mute").addClass("muted");
+				}
+				$("#menu").click(function(){
+					soundCondition = "sound=0";
+					if(sound){
+						audio.play();
+						soundCondition = "sound=1";
+					}
+					var url="index.html?" + soundCondition;
+					window.location.href = url;
+				});
+				$('#animations').click(function(){
+					if(!turnRunning && !gameOver){
+						if(sound){
+							audio.play();
+						}
+						if(slow){
+							$(this).html("Quick Animations");
+						}else{
+							$(this).html("Slow Animations");
+						}
+						slow = !slow
+						tiles.forEach(function(tile){
+							try{
+								if(slow){
+									a1 = tile.turret.animations.add("enemy-player", [0,1,2,3,4,5,6], 25);
+									a2 = tile.turret.animations.add("player-enemy", [6,5,4,3,2,1,0], 25);
+									a3 = tile.turret.animations.add("empty-player", [3,4,5,6], 18);
+									a4 = tile.turret.animations.add("empty-enemy", [3,2,1,0], 18);
+
+									a1.onComplete.add(test, this);
+									a2.onComplete.add(test, this);
+									a3.onComplete.add(test, this);
+									a4.onComplete.add(test, this);
+								}else{
+									a1 = tile.turret.animations.add("enemy-player", [0,1,2,3,4,5,6], 250);
+									a2 = tile.turret.animations.add("player-enemy", [6,5,4,3,2,1,0], 250);
+									a3 = tile.turret.animations.add("empty-player", [3,4,5,6], 180);
+									a4 = tile.turret.animations.add("empty-enemy", [3,2,1,0], 180);
+
+									a1.onComplete.add(test, this);
+									a2.onComplete.add(test, this);
+									a3.onComplete.add(test, this);
+									a4.onComplete.add(test, this);
+								}
+							}catch(err){}
+						});
+					}
+				});
+			});
+
+		</script>
+	</head>
+	<body style="overflow:hidden;background-image: url('images/bg.png');">
+		<div class="unselectable" id="wrapper" style="font-size: 0; overflow: hidden;">
+		</div>
+		<div class="Scoreboard" style="position: absolute; left: 550px; text-align:center; top: 140px; font-size:32px">
+			<div id="playerName" style="color:#0082FF">PLAYER
+			</div>
+			<div id="playerScore" style="color:#0082FF; margin-bottom:100px">1
+			</div>
+			<div id="enemyName" style="color:#FF510E">ENEMY
+			</div>
+			<div id="enemyScore" style="color:#FF510E">1
+			</div>
+			<div id="menu" style="color:#0082FF;cursor:pointer;font-size: 20px;position: fixed;bottom: 10px;right: 50px;">Main Menu</div>
+			<div id="animations" style="color:#0082FF;cursor:pointer;font-size: 20px;position: fixed;bottom: 10px;left: 10px;">Slow Animations</div>
+			<div id="winCond" style="font-size: 16px;position: fixed;top: 0px;text-align:right;right: 5px;color:#0082FF;text-shadow: 0px 0px 2px #0082FF;"></div>
+		</div>
+		<a style="display:none" id="inline" href="#data"></a>
+		<div style="display:none"><div id="data"><div id="youWin" style="color:#0082FF;display:none;">You Win!</div><div id="youLose" style="color:#FF510E;display:none;">You Lose!</div></div></div>
+		<div id="mute"></div>
+	</body>
+</html>
